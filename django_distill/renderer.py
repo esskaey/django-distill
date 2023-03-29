@@ -11,7 +11,7 @@ from django.conf.urls import include as include_urls
 from django.http import HttpResponse
 from django.template.response import SimpleTemplateResponse
 from django.test import RequestFactory
-from django.urls import reverse
+from django.urls import reverse, resolve
 from django.urls.exceptions import NoReverseMatch
 from django.core.management import call_command
 from django_distill.errors import DistillError, DistillWarning
@@ -174,6 +174,9 @@ class DistillRender(object):
         view_regex, view_func = args[0], args[1]
         request_factory = RequestFactory()
         request = request_factory.get(uri)
+        # adding view information to request instance 
+        # which is required by error tracking systems like sentry
+        request.resolver_match = resolve(uri)
         setattr(request, 'session', DummyInterface('request.session'))
         if isinstance(param_set, dict):
             a, k = (), param_set
