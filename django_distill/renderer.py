@@ -272,6 +272,7 @@ class DistillRender(object):
         view_args = args[2:] if len(args) > 2 else ()
         request_factory = RequestFactory()
         request = request_factory.get(uri)
+        request.resolver_match = ResolverMatch(view_func, args=[], kwargs=None)
         handler = DistillHandler()
         handler.load_middleware()
         if isinstance(param_set, dict):
