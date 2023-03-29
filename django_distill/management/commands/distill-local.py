@@ -1,5 +1,4 @@
 import os
-import sys
 from shutil import rmtree
 from django.core.management.base import (BaseCommand, CommandError)
 from django.conf import settings
@@ -42,7 +41,7 @@ class Command(BaseCommand):
                 raise CommandError(e)
         if collectstatic:
             run_collectstatic(stdout)
-        if not os.path.isdir(settings.STATIC_ROOT):
+        if not exclude_staticfiles and not os.path.isdir(settings.STATIC_ROOT):
             e = 'Static source directory does not exist, run collectstatic'
             raise CommandError(e)
         output_dir = os.path.abspath(os.path.expanduser(output_dir))

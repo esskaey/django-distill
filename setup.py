@@ -3,7 +3,7 @@ import sys
 from setuptools import setup, find_packages
 
 
-version = '2.8.1'
+version = '3.0.2'
 
 
 with open('README.md', 'rt') as f:
@@ -26,6 +26,11 @@ setup(
     license = 'MIT',
     include_package_data = True,
     install_requires = requirements,
+    extras_require = {
+        'amazon': ['boto3'],
+        'google': ['google-api-python-client', 'google-cloud-storage'],
+        'microsoft': ['azure-storage-blob'],
+    },
     packages = find_packages(),
     classifiers = [
         'Development Status :: 5 - Production/Stable',
@@ -42,6 +47,8 @@ setup(
         'Topic :: Software Development :: Libraries :: Application Frameworks',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
-    keywords = ['django', 'distill', 'static', 's3', 'rackspace',
-                'google cloud storage'],
+    keywords = ['django', 'distill', 'static', 'website', 'jamstack', 's3',
+                'amazon s3', 'aws', 'amazon', 'google', 'microsoft',
+                'google cloud', 'google cloud storage', 'azure',
+                'azure storage', 'azure blob storage'],
 )

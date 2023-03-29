@@ -1,7 +1,28 @@
 from django.conf import settings
 from django.http import HttpResponse
-from django.urls import include, path
-from django_distill import distill_url, distill_path, distill_re_path
+from django.urls import include, path, reverse
+from django.contrib.flatpages.views import flatpage as flatpage_view
+from django.contrib.sitemaps import Sitemap
+from django.contrib.sitemaps.views import sitemap
+from django.apps import apps as django_apps
+from django_distill import distill_path, distill_re_path
+
+
+class TestStaticViewSitemap(Sitemap):
+
+    priority = 0.5
+    changefreq = 'daily'
+
+    def items(self):
+        return ['path-sitemap']
+
+    def location(self, item):
+        return reverse(item)
+
+
+sitemap_dict = {
+    'static': TestStaticViewSitemap,
+}
 
 
 def test_no_param_view(request):
@@ -9,11 +30,15 @@ def test_no_param_view(request):
 
 
 def test_positional_param_view(request, param):
+    if not isinstance(param, str):
+        param = str(param)
     return HttpResponse(b'test' + param.encode(),
                         content_type='application/octet-stream')
 
 
 def test_named_param_view(request, param=None):
+    if not isinstance(param, str):
+        param = str(param)
     return HttpResponse(b'test' + param.encode(),
                         content_type='application/octet-stream')
 
@@ -39,32 +64,23 @@ def test_no_param_func():
 
 
 def test_positional_param_func():
-    return ('12345',)
+    return ('12345', '67890')
 
 
 def test_named_param_func():
     return [{'param': 'test'}]
 
 
+def test_flatpages_func():
+    Site = django_apps.get_model('sites.Site')
+    current_site = Site.objects.get_current()
+    flatpages = current_site.flatpage_set.filter(registration_required=False)
+    for flatpage in flatpages:
+        yield {'url': flatpage.url}
+
+
 urlpatterns = [
 
-    distill_url(r'^url/$',
-        test_no_param_view,
-        name='url-no-param',
-        distill_func=test_no_param_func,
-        distill_file='test'),
-    distill_url(r'^url-no-func/$',
-        test_no_param_view,
-        name='url-no-param-no-func',
-        distill_file='test'),
-    distill_url(r'^url/([\d]+)$',
-        test_positional_param_view,
-        name='url-positional-param',
-        distill_func=test_positional_param_func),
-    distill_url(r'^url/(?P<param>[\w]+)$',
-        test_named_param_view,
-        name='url-named-param',
-        distill_func=test_named_param_func),
     path('path/namespace1/',
         include('tests.namespaced_urls', namespace='test_namespace')),
     path('path/no-namespace/',
@@ -89,10 +105,20 @@ if settings.HAS_RE_PATH:
             test_positional_param_view,
             name='re_path-positional-param',
             distill_func=test_positional_param_func),
+        distill_re_path(r'^re_path/x/([\d]+)$',
+            test_positional_param_view,
+            name='re_path-positional-param-custom',
+            distill_func=test_positional_param_func,
+            distill_file="re_path/x/{}.html"),
         distill_re_path(r'^re_path/(?P<param>[\w]+)$',
             test_named_param_view,
             name='re_path-named-param',
             distill_func=test_named_param_func),
+        distill_re_path(r'^re_path/x/(?P<param>[\w]+)$',
+            test_named_param_view,
+            name='re_path-named-param-custom',
+            distill_func=test_named_param_func,
+            distill_file="re_path/x/{param}.html"),
         distill_re_path(r'^re_path/broken$',
             test_broken_view,
             name='re_path-broken',
@@ -106,6 +132,10 @@ if settings.HAS_RE_PATH:
             name='re_path-404',
             distill_status_codes=(404,),
             distill_func=test_no_param_func),
+        distill_re_path(r'^re_path/flatpage(?P<url>.+)$',
+            flatpage_view,
+            name='re_path-flatpage',
+            distill_func=test_flatpages_func),
 
     ]
 
@@ -126,10 +156,20 @@ if settings.HAS_PATH:
             test_positional_param_view,
             name='path-positional-param',
             distill_func=test_positional_param_func),
+        distill_path('path/x/<int>',
+            test_positional_param_view,
+            name='path-positional-param-custom',
+            distill_func=test_positional_param_func,
+            distill_file="path/x/{}.html"),
         distill_path('path/<str:param>',
             test_named_param_view,
             name='path-named-param',
             distill_func=test_named_param_func),
+        distill_path('path/x/<str:param>',
+            test_named_param_view,
+            name='path-named-param-custom',
+            distill_func=test_named_param_func,
+            distill_file="path/x/{param}.html"),
         distill_path('path/broken',
             test_broken_view,
             name='path-broken',
@@ -143,5 +183,14 @@ if settings.HAS_PATH:
             name='path-404',
             distill_status_codes=(404,),
             distill_func=test_no_param_func),
+        distill_path('path/flatpage<path:url>',
+            flatpage_view,
+            name='path-flatpage',
+            distill_func=test_flatpages_func),
+        distill_path('path/test-sitemap',
+            sitemap,
+            {'sitemaps': sitemap_dict},
+            name='path-sitemap'
+        )
 
     ]

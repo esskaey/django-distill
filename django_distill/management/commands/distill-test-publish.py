@@ -44,7 +44,6 @@ class Command(BaseCommand):
         backend_class = get_backend(publish_engine)
         random_file = NamedTemporaryFile(delete=False)
         random_str = hexlify(os.urandom(16))
-        random_name = '/' + random_str.decode('utf-8')
         random_file.write(random_str)
         random_file.close()
         backend = backend_class(os.path.dirname(random_file.name),
@@ -61,6 +60,8 @@ class Command(BaseCommand):
         else:
             msg = 'File error, remote file hash differs from local hash'
             self.stderr.write(msg)
+        self.stdout.write('Final checks')
+        backend.final_checks()
         self.stdout.write('Deleting remote test file')
         backend.delete_remote_file(remote_file_name)
         if os.path.exists(random_file.name):

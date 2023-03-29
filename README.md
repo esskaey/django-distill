@@ -1,5 +1,9 @@
 # django-distill
 
+`django-distill` now has a website. Read more at:
+
+## :link: https://django-distill.com/
+
 `django-distill` is a minimal configuration static site generator and publisher
 for Django. Most Django versions are supported, however up to date versions are
 advised including the Django 3.x releases. `django-distill` as of the 1.7 release
@@ -15,12 +19,12 @@ content.
 `django-distill` iterates over URLs in your Django project using easy to write
 iterable functions to yield the parameters for whatever pages you want to save
 as static HTML. These static files can be automatically uploaded to a bucket-style
-remote container such as Amazon S3 or Googe Cloud Files, or, written to a local
-directory as a fully working local static version of your project. The site
-generation, or distillation process, can be easily integrated into CI/CD workflows
-to auto-deploy static sites on commit. `django-distill` can be defined as an
-extension to Django to make Django projects compatible with "Jamstack"-style site
-architecture.
+remote container such as Amazon S3, Googe Cloud Files, Microsoft Azure Storage,
+or, written to a local directory as a fully working local static version of
+your project. The site generation, or distillation process, can be easily
+integrated into CI/CD workflows to auto-deploy static sites on commit.
+`django-distill` can be defined as an extension to Django to make Django
+projects compatible with "Jamstack"-style site architecture.
 
 `django-distill` plugs directly into the existing Django framework without the
 need to write custom renderers or other more verbose code. You can also integrate
@@ -30,13 +34,13 @@ a small subsection of pages rather than the entire site.
 For static files on CDNs you can use the following 'cache buster' library to
 allow for fast static media updates when pushing changes:
 
-https://github.com/meeb/django-cachekiller
+[:link: meeb/django-cachekiller](https://github.com/meeb/django-cachekiller)
 
 There is a complete example site that creates a static blog and uses
 `django-distill` with `django-cachekiller` via continuous deployment on Netlify
 available here:
 
-https://github.com/meeb/django-distill-example
+[:link: meeb/django-distill-example](https://github.com/meeb/django-distill-example)
 
 
 # Installation
@@ -84,14 +88,21 @@ argument.
 
 Assuming you have an existing Django project, edit a `urls.py` to include the
 `distill_path` function which replaces Django's standard `path` function and
-supports the new keyword arguments `distill_func` and `distill_file`. The
-`distill_func` argument should be provided with a function or callable class
-that returns an iterable or None. The `distill_file` argument is entirely
-optional and allows you to override the URL that would otherwise be generated
-from the reverse of the URL regex. This allows you to rename URLs like
-`/example` to any other name like `example.html`. As of v0.8 any URIs ending
-in a slash `/` are automatically modified to end in `/index.html`. An example
-distill setup for a theoretical blogging app would be:
+supports the new keyword arguments `distill_func` and `distill_file`.
+
+The `distill_func` argument should be provided with a function or callable
+class that returns an iterable or `None`.
+
+The `distill_file` argument is entirely optional and allows you to override the
+URL that would otherwise be generated from the reverse of the URL regex. This
+allows you to rename URLs like `/example` to any other name like
+`example.html`. As of v0.8 any URIs ending in a slash `/` are automatically
+modified to end in `/index.html`. You can use format string parameters in the
+`distill_file` to customise the file name, arg values from the URL will be
+substituted in, for example `{}` for positional args or `{param_name}` for
+named args.
+
+An example distill setup for a theoretical blogging app would be:
 
 ```python
 # Replaces the standard django.conf.path, identical syntax
@@ -128,15 +139,16 @@ urlpatterns = (
                  # Note that for paths which have no paramters
                  # distill_func is optional
                  distill_func=get_index,
-                 # / is not a valid file name! override it to index.html
+                 # '' is not a valid file name! override it to index.html
                  distill_file='index.html'),
     # e.g. /post/123-some-post-title using named parameters
-    distill_path('post/<int:blog_id>-<slug:blog_title>',
+    distill_path('post/<int:blog_id>-<slug:blog_title>.html',
                  PostView.as_view(),
                  name='blog-post',
                  distill_func=get_all_blogposts),
     # e.g. /posts-by-year/2015 using positional parameters
-    distill_path('posts-by-year/<int:year>',
+    # url ends in / so file path will have /index.html appended
+    distill_path('posts-by-year/<int:year>/',
                  PostYear.as_view(),
                  name='blog-year',
                  distill_func=get_years),
@@ -149,9 +161,9 @@ passed back to Django for normal processing. This has no runtime performance
 impact as this happens only once upon starting the application.
 
 If your path has no URI paramters, such as `/` or `/some-static-url` you do
-not have to specify the `distill_func` paramter if you don't want to. As for
-paths with no paramters the `distill_func` always returns `None` this has is
-set as the default behaviour for `distill_func`s.
+not have to specify the `distill_func` parameter if you don't want to. As for
+paths with no parameters the `distill_func` always returns `None`, this is set
+as the default behaviour for `distill_func`s.
 
 You can use the `distill_re_path` function as well, which replaces the default
 `django.urls.re_path` function. Its usage is identical to the above:
@@ -180,6 +192,25 @@ urlpatterns = (
                 SomeView.as_view(),
                 name='url-view',
                 distill_func=some_func),
+)
+```
+
+### Parameters in file names
+
+You can standard Python string formatting in `distill_file` as well to enable
+you to change the output file path for a file if you wish. Note this does not
+update the URL used by Django so if you use this make sure your `path` pattern
+matches the `distill_file` pattern or your links might not work in Django. An
+example:
+
+```python
+# Override file path with parameters. Values are taken from the URL pattern
+urlpatterns = (
+    distill_path('post/<int:blog_id>-<slug:blog_title>.html',
+                 PostView.as_view(),
+                 name='blog-post',
+                 distill_func=get_all_blogposts,
+                 distill_file="post/{blog_id}-{blog_title}.html"
 )
 ```
 
@@ -254,7 +285,7 @@ will exit with a status code of 1.
 $ ./manage.py distill-publish [optional destination here]
 ```
 
-If you have configured at least once publishing destination (see below) you can
+If you have configured at least one publishing destination (see below) you can
 use the `distill-publish` command to publish the site to a remote location.
 
 This will perform a full synchronisation, removing any remote files that are no
@@ -334,6 +365,77 @@ desired for statically generated sites. The default behaviour is to skip static 
 files.
 
 
+# Writing single files
+
+As of `django-distill` version `3.0.0` you can use the
+`django_distill.renderer.render_single_file` method to write out a single file
+to disk using `django_distill`. This is useful for writing out single files to disk,
+for example, you have a Django site which has some static files in a directory
+written by `django_distill` but the rest of the site is a normal dynamic Django site.
+You can update a static HTML file every time a model instance is saved. You can
+use single file writing with signals to achieve this. For example:
+
+```python
+# in models.py
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django_distill.renderer import render_single_file
+
+@receiver(post_save, sender=SomeBlogPostModel)
+def write_blog_post_static_file_post_save(sender, **kwargs):
+    render_single_file(
+        '/path/to/output/directory',
+        'blog-post-view-name',
+        blog_id=sender.pk,
+        blog_slug=sender.slug
+    )
+```
+
+The syntax for `render_single_file` is similar to Django's `url.reverse`. The full
+usage interface is:
+
+```python
+render_single_file(
+    '/path/to/output/directory',
+    'view-name-set-in-urls-py',
+    *view_args,
+    **view_kwargs
+)
+```
+
+For example, if you had a blog post URL defined as:
+
+```python
+    # in urls.py
+    distill_path('post/<int:blog_id>_<slug:blog_slug>.html',
+                 PostView.as_view(),
+                 name='blog-post',
+                 distill_func=get_all_blogposts),
+```
+
+Your usage would be:
+
+```python
+render_single_file(
+    '/path/to/output/directory',
+    'blog-post',
+    blog_id=123,
+    blog_slug='blog-title-slug',
+)
+```
+
+which would write out the contents of `/post/123_blog-title-slug.html` into
+`/path/to/output/directory` as the file
+`/path/to/output/directory/post/123_blog-title-slug.html`. Note any required
+sub-directories (`/path/to/output/directory/post` in this example) will be
+automatically created if they don't already exist. All `django-distill` rules
+apply, such as URLs ending in `/` will be saved as `/index.html` to make sense
+for a physical file on disk.
+
+Also note that `render_single_file` can only be imported and used into an
+initialised Django project.
+
+
 # Publishing targets
 
 You can automatically publish sites to various supported remote targets through
@@ -342,7 +444,7 @@ Django by changing the backend database engine. Currently the engines supported
 by `django-distill` are:
 
 **django_distill.backends.amazon_s3**: Publish to an Amazon S3 bucket. Requires
-  the Python library `boto3` (`$ pip install boto3`). The bucket must already
+  the Python library `boto3` (`$ pip install django-distill[amazon]`). The bucket must already
   exist (use the AWS control panel). Options:
 
 ```python
@@ -358,7 +460,7 @@ by `django-distill` are:
 **django_distill.backends.google_storage**: Publish to a Google Cloud Storage
   bucket. Requires the Python libraries `google-api-python-client` and
   `google-cloud-storage`
-  (`$ pip install google-api-python-client google-cloud-storage`). The bucket
+  (`$ pip install django-distill[google]`). The bucket
   must already exist and be set up to host a public static website (use the
   Google Cloud control panel). Options:
 
@@ -370,6 +472,25 @@ by `django-distill` are:
     'BUCKET': '[bucket.name.here]',
 },
 ```
+
+**django_distill.backends.microsoft_azure_storage**: Publish to a Microsoft
+  Azure Blob Storage container. Requires the Python library
+  `azure-storage-blob` (`$ pip install django-distill[microsoft]`). The storage
+  account must already exist and be set up to host a public static website
+  (use the Microsoft Azure control panel). Options:
+
+```python
+'some-microsoft-storage-account': {
+    'ENGINE': 'django_distill.backends.microsoft_azure_storage',
+    'PUBLIC_URL': 'https://[storage-account-name]...windows.net/',
+    'CONNECTION_STRING': '...',
+},
+```
+
+Note that each Azure storage account supports one static website using the
+magic container `$web` which is where `django-distill` will attempt to
+publish your site.
+
 
 # Tests
 
